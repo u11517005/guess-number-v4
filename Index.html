@@ -1,20 +1,104 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>猜數字遊戲版本四</title><style>
-body{margin:0;padding:22px;background:#f1f5ee;color:#554f45;font-family:"Microsoft JhengHei",sans-serif}.wrap{max-width:900px;margin:auto}.card{background:#fffdf8;border:1px solid #dce5dc;border-radius:18px;padding:20px;margin:16px 0}h1,h2{color:#587c67}h1{text-align:center}.muted{color:#81796e;font-size:13px}button{background:#587c67;color:white;border:0;border-radius:9px;padding:11px 15px;cursor:pointer}button:disabled{opacity:.5}input[type=text]{padding:11px;border:1px solid #cbd8cc;border-radius:9px;font-size:20px;letter-spacing:4px;width:170px}.status{background:#e8f0e9;padding:12px;border-radius:9px;margin:12px 0}.err{background:#f9e9e6;color:#98483f}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{padding:9px;border-bottom:1px solid #dce5dc;text-align:center}.item{padding:10px;border:1px solid #dce5dc;border-radius:10px;margin:8px 0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}a{color:#587c67}
-</style></head><body><div class="wrap"><h1>🔢 猜數字遊戲版本四</h1><p class="muted" style="text-align:center">Google 帳號授權｜每位玩家自己的雲端試算表</p>
-<div class="card"><h2>一、帳號狀態</h2><div id="login" class="status">正在確認 Google 帳號……</div><div id="sheet" class="muted"></div><p class="muted">首次登入會在目前 Google 帳號的雲端硬碟建立專屬試算表。</p></div>
-<div class="card"><h2>二、目前遊戲</h2><input id="guess" type="text" maxlength="4" inputmode="numeric" placeholder="四位數字"><button id="send" disabled>送出猜測</button> <button id="new" disabled>開始新遊戲</button><p><label><input id="debug" type="checkbox" disabled> 除錯模式（顯示答案）</label> <b id="answer"></b></p><div id="msg" class="status">載入中……</div><table><thead><tr><th>次數</th><th>猜測</th><th>結果</th><th>時間</th></tr></thead><tbody id="rows"></tbody></table></div>
-<div class="card"><h2>三、我的遊戲紀錄</h2><div id="history">載入中……</div></div></div>
-<script>
-let data=null,current=null,readonly=false,busy=false;const $=x=>document.getElementById(x);
-function api(fn,...args){return new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(e=>no(Error(e.message||e)))[fn](...args));}
-function msg(t,err=false){$("msg").textContent=t;$("msg").className="status"+(err?" err":"");}
-function rows(gs){$("rows").innerHTML="";if(!gs.length){$("rows").innerHTML="<tr><td colspan=4>尚無猜測</td></tr>";return;}gs.forEach((g,i)=>{let tr=document.createElement("tr");[i+1,g.guess,g.a+"A"+g.b+"B",new Date(g.time).toLocaleString("zh-TW")].forEach(x=>{let td=document.createElement("td");td.textContent=x;tr.append(td)});$("rows").append(tr)});}
-function render(){if(!current){rows([]);msg("目前沒有遊戲，請開始新遊戲。");$("send").disabled=true;$("debug").disabled=true;return;}rows(current.guesses);$("guess").disabled=readonly||current.status==="completed";$("send").disabled=busy||readonly||current.status==="completed";$("new").disabled=busy;$("debug").disabled=false;msg(readonly?"正在查看舊遊戲紀錄（唯讀）。":current.status==="completed"?"恭喜完成本局！":`目前已猜 ${current.guesses.length} 次。`);}
-function history(){let h=$("history");h.innerHTML="";if(!data.games.length){h.textContent="尚無紀錄";return;}data.games.forEach(g=>{let d=document.createElement("div");d.className="item";let s=document.createElement("span");s.textContent=new Date(g.createdAt).toLocaleString("zh-TW")+"｜"+g.guesses.length+" 次｜"+(g.status==="completed"?"已完成":"未完成");d.append(s);if(g.gameId!==current?.gameId){let b=document.createElement("button");b.textContent="查看紀錄";b.onclick=()=>{current=g;readonly=true;$("debug").checked=false;$("answer").textContent="";render()};d.append(b)}h.append(d)});}
-async function load(){data=await api("getUserData");current=data.currentGame;readonly=false;$("login").textContent="已登入："+data.email;$("sheet").innerHTML=`<a target=_blank href="${data.sheetUrl}">開啟我的專屬 Google 試算表</a>`;history();$("new").disabled=false;render();}
-$("new").onclick=async()=>{busy=true;render();try{await api("startNewGame");await load();msg("新遊戲已建立並儲存。")}catch(e){msg(e.message,true)}finally{busy=false;render()}};
-$("send").onclick=async()=>{let v=$("guess").value.trim();if(!/^\d{4}$/.test(v)){msg("請輸入剛好四位數字（可包含開頭 0）。",true);return;}if(new Set(v).size!==4){msg("四個數字不可重複。",true);return;}busy=true;render();try{let r=await api("submitGuess",current.gameId,v);$("guess").value="";await load();msg(r.a===4?"恭喜答對！":"結果："+r.a+"A"+r.b+"B，已儲存到你的試算表。")}catch(e){msg(e.message,true)}finally{busy=false;render()}};
-$("debug").onchange=async()=>{ $("answer").textContent="";if(!$("debug").checked||!current)return;try{let r=await api("getDebugAnswer",current.gameId);$("answer").textContent="答案："+r.answer}catch(e){$("debug").checked=false;msg(e.message,true)}};
-$("guess").addEventListener("keydown",e=>{if(e.key==="Enter")$("send").click()});
-load().catch(e=>{$("login").textContent=e.message;$("login").className="status err"});
-</script></body></html>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>猜數字遊戲版本四</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft JhengHei", sans-serif;
+            background: #f1f5ee;
+            color: #554f45;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #fffdf8;
+            padding: 45px 30px;
+            border-radius: 22px;
+            text-align: center;
+            max-width: 500px;
+            width: 85%;
+            box-shadow: 0 5px 20px #00000010;
+        }
+
+        h1 {
+            color: #587c67;
+        }
+
+        p {
+            line-height: 1.8;
+        }
+
+        .features {
+            text-align: left;
+            background: #e8f0e9;
+            padding: 18px 25px;
+            border-radius: 12px;
+            line-height: 2;
+            margin: 25px 0;
+        }
+
+        .start-btn {
+            display: inline-block;
+            background: #587c67;
+            color: white;
+            text-decoration: none;
+            padding: 14px 35px;
+            border-radius: 12px;
+            font-size: 18px;
+        }
+
+        .start-btn:hover {
+            background: #456451;
+        }
+
+        .footer {
+            color: #999;
+            font-size: 12px;
+            margin-top: 25px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🔢 猜數字遊戲版本四</h1>
+
+    <p>
+        歡迎來到猜數字遊戲！<br>
+        使用 Google 帳號登入，開始你的挑戰吧！
+    </p>
+
+    <div class="features">
+        ✨ 遊戲功能
+        <br>・Google 帳號登入
+        <br>・四位數字猜測
+        <br>・幾 A 幾 B 即時回饋
+        <br>・個人遊戲歷史紀錄
+        <br>・未完成遊戲接續
+        <br>・除錯模式
+    </div>
+
+    <a
+        class="start-btn"
+        href="https://script.google.com/a/macros/go.utaipei.edu.tw/s/AKfycbwALutf1U9P1KGfEPuAIrF1KzmRwXMxphzquueUWHCMpwkHm5AP35JzGoUEugwHKjg4BA/exec"
+        target="_blank">
+        開始遊戲
+    </a>
+
+    <div class="footer">
+        猜數字遊戲版本四｜Google Apps Script 雲端版
+    </div>
+
+</div>
+
+</body>
+</html>
